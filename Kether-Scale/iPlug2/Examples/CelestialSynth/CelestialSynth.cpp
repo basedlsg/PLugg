@@ -325,14 +325,33 @@ void CelestialVoice::ProcessSamplesAccumulating(sample** inputs, sample** output
 // Scale system implementation
 double PentatonicScaleSystem::GetScaleNote(int noteIndex, double baseFreq) const
 {
-  // Simple pentatonic scale mapping
+  // Map note index to scale degree and octave
   int scaleIndex = noteIndex % 5;
   int octave = noteIndex / 5;
-  
-  double ratio = mScaleRatios[scaleIndex];
+
+  // Get ratio from current scale
+  double ratio = mScaleRatios[mCurrentScale][scaleIndex];
   double octaveMultiplier = std::pow(2.0, octave);
-  
+
   return baseFreq * ratio * octaveMultiplier;
+}
+
+int PentatonicScaleSystem::MapMidiNoteToScaleIndex(int midiNote) const
+{
+  int noteInOctave = midiNote % 12;
+  int octave = midiNote / 12;
+
+  int scaleDegree = mChromaticToScale[noteInOctave];
+  return (octave * 5) + scaleDegree;
+}
+
+double PentatonicScaleSystem::GetFrequencyForMidiNote(int midiNote, double baseFreq) const
+{
+  // Map MIDI note to scale index
+  int scaleIndex = MapMidiNoteToScaleIndex(midiNote);
+
+  // Calculate frequency using scale ratios
+  return GetScaleNote(scaleIndex, baseFreq);
 }
 
 // Main DSP implementation
@@ -377,9 +396,8 @@ void CelestialSynthDSP::ProcessBlock(sample** inputs, sample** outputs, int nInp
       }
       
       // MOTION - Subtle frequency modulation/vibrato
-      static double motionPhase = 0.0;
-      motionPhase += 0.01 * mMotion;
-      sample *= (1.0 + std::sin(motionPhase) * mMotion * 0.1);
+      mMotionPhase += 0.01 * mMotion;
+      sample *= (1.0 + std::sin(mMotionPhase) * mMotion * 0.1);
       
       // SPACE - Stereo width and reverb-like effect
       if (c == 1 && nOutputs > 1) // Right channel
@@ -435,14 +453,17 @@ void CelestialSynthDSP::ProcessMidiMsg(const IMidiMsg& msg)
     {
       if (!mVoices[v]->GetBusy())
       {
-        double freq = 440.0 * std::pow(2.0, (note - 69) / 12.0);
-        
+        // Use pentatonic scale system for frequency calculation
+        // Base frequency is C4 (MIDI 60) = 261.6256 Hz
+        double baseFreq = 261.6256;
+        double freq = mScaleSystem.GetFrequencyForMidiNote(note, baseFreq);
+
         // Apply timbre shift
         freq *= std::pow(2.0, mTimbreShift * 0.1); // Shift by semitones
-        
+
         mVoices[v]->SetFrequency(freq);
         mVoices[v]->SetNote(note, velocity);
-        
+
         // Apply velocity scaling with warmth
         double scaledVelocity = (velocity / 127.0) * (0.5 + mWarmth * 0.5);
         mVoices[v]->Trigger(scaledVelocity, false);

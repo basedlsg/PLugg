@@ -7,30 +7,82 @@
 
 using namespace iplug;
 
-// Pentatonic scale system
+// Pentatonic scale system with just intonation ratios
 class PentatonicScaleSystem
 {
 public:
   enum ScaleType
   {
-    kJapaneseYo = 0,      // C-D-F-G-A (1-2-5-7-9)
-    kChineseGong,         // C-D-E-G-A (1-2-4-7-9)
-    kCeltic,              // C-D-F-G-Bb (1-2-5-7-10)
-    kIndonesianSlendro,   // C-D-Eb-G-A (1-2-3-7-9)
-    kScottishHighland,    // C-D-F-G-A (1-2-5-7-9)
-    kMongolianThroat,     // C-Eb-F-G-Bb (1-3-5-7-10)
-    kEgyptianSacred,      // C-D-E-G-A (1-2-4-7-9)
-    kNativeAmerican,      // C-Eb-F-G-Bb (1-3-5-7-10)
-    kNordicAurora,        // C-D-F-G-A (1-2-5-7-9)
+    kJapaneseYo = 0,      // C-D-E-G-A (Major pentatonic with Pythagorean 6th)
+    kChineseGong,         // C-D-E-G-A (Pure Pythagorean major pentatonic)
+    kCeltic,              // C-D-F-G-A (Sus4 pentatonic)
+    kIndonesianSlendro,   // C-D-Eb-G-A (Approximated slendro)
+    kScottishHighland,    // C-D-F-G-A (Sus4 pentatonic, same as Celtic)
+    kMongolianThroat,     // C-Eb-F-G-Bb (Minor pentatonic)
+    kEgyptianSacred,      // C-D-E-G-A (5-limit just intonation major)
+    kNativeAmerican,      // C-Eb-F-G-Bb (Minor pentatonic)
+    kNordicAurora,        // C-D-F-G-A (Sus4 pentatonic)
     kNumScales
   };
-  
+
   void SetScale(ScaleType scale) { mCurrentScale = scale; }
   double GetScaleNote(int noteIndex, double baseFreq) const;
-  
+
+  // Convert MIDI note to pentatonic scale index
+  int MapMidiNoteToScaleIndex(int midiNote) const;
+
+  // Get frequency for MIDI note using current scale
+  double GetFrequencyForMidiNote(int midiNote, double baseFreq = 261.6256) const;
+
 private:
   ScaleType mCurrentScale = kJapaneseYo;
-  double mScaleRatios[5] = {1.0, 9.0/8.0, 4.0/3.0, 3.0/2.0, 5.0/3.0};
+
+  // Just intonation ratios for all 9 scales
+  static constexpr double mScaleRatios[kNumScales][5] = {
+    // Japanese Yo: C-D-E-G-A (Pythagorean-influenced major)
+    {1.0, 9.0/8.0, 5.0/4.0, 3.0/2.0, 27.0/16.0},
+
+    // Chinese Gong: C-D-E-G-A (Pure Pythagorean)
+    {1.0, 9.0/8.0, 81.0/64.0, 3.0/2.0, 27.0/16.0},
+
+    // Celtic: C-D-F-G-A (Sus4 pentatonic)
+    {1.0, 9.0/8.0, 4.0/3.0, 3.0/2.0, 5.0/3.0},
+
+    // Indonesian Slendro: C-D-Eb-G-A (approximation)
+    {1.0, 9.0/8.0, 32.0/27.0, 3.0/2.0, 27.0/16.0},
+
+    // Scottish Highland: C-D-F-G-A (same as Celtic)
+    {1.0, 9.0/8.0, 4.0/3.0, 3.0/2.0, 5.0/3.0},
+
+    // Mongolian Throat: C-Eb-F-G-Bb (minor pentatonic)
+    {1.0, 6.0/5.0, 4.0/3.0, 3.0/2.0, 9.0/5.0},
+
+    // Egyptian Sacred: C-D-E-G-A (5-limit major)
+    {1.0, 9.0/8.0, 5.0/4.0, 3.0/2.0, 5.0/3.0},
+
+    // Native American: C-Eb-F-G-Bb (minor pentatonic)
+    {1.0, 6.0/5.0, 4.0/3.0, 3.0/2.0, 9.0/5.0},
+
+    // Nordic Aurora: C-D-F-G-A (sus4 pentatonic)
+    {1.0, 9.0/8.0, 4.0/3.0, 3.0/2.0, 5.0/3.0}
+  };
+
+  // Map chromatic MIDI notes to pentatonic scale degrees
+  // Maps 12 chromatic notes per octave to 5 pentatonic degrees
+  static constexpr int mChromaticToScale[12] = {
+    0,  // C  -> degree 0
+    0,  // C# -> degree 0 (snap down)
+    1,  // D  -> degree 1
+    1,  // D# -> degree 1 (snap down)
+    2,  // E  -> degree 2
+    2,  // F  -> degree 2 (snap down)
+    2,  // F# -> degree 2 (snap down)
+    3,  // G  -> degree 3
+    3,  // G# -> degree 3 (snap down)
+    4,  // A  -> degree 4
+    4,  // A# -> degree 4 (snap down)
+    4   // B  -> degree 4 (snap down)
+  };
 };
 
 // Voice class
@@ -92,14 +144,14 @@ private:
   std::unique_ptr<CelestialVoice> mVoices[kMaxVoices];
   PentatonicScaleSystem mScaleSystem;
   double mSampleRate = 44100.0;
-  
+
   // Five Sacred Control values
   double mBrilliance = 0.5;
   double mMotion = 0.3;
   double mSpace = 0.4;
   double mWarmth = 0.6;
   double mPurity = 0.8;
-  
+
   // Additional parameter values
   double mGravity = 0.5;
   double mTimbreShift = 0.0;
@@ -107,4 +159,7 @@ private:
   int mVoiceCount = 8;
   double mGain = 0.5;
   bool mMPEEnabled = false;
+
+  // Motion phase (was static, now instance variable for multi-instance support)
+  double mMotionPhase = 0.0;
 };
