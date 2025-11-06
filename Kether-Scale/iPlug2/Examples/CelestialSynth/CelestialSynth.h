@@ -6,27 +6,41 @@
 
 const int kNumPresets = 12;
 
-// Five Sacred Controls + Additional Parameters
+// Parameters organized by section (professional layout)
 enum EParams
 {
-  // Five Sacred Controls
-  kParamBrilliance = 0,
+  // === OSCILLATOR SECTION ===
+  kParamWaveform = 0,
+  kParamTimbreShift,
+
+  // === FILTER SECTION ===
+  kParamFilterCutoff,
+  kParamFilterResonance,
+
+  // === ENVELOPE SECTION ===
+  kParamAttack,
+  kParamDecay,
+  kParamSustain,
+  kParamRelease,
+
+  // === EFFECTS SECTION ===
+  kParamDelayTime,
+  kParamDelayFeedback,
+  kParamDelayMix,
+  kParamReverbMix,
+
+  // === FIVE SACRED CONTROLS (Character) ===
+  kParamBrilliance,
   kParamMotion,
   kParamSpace,
   kParamWarmth,
   kParamPurity,
-  
-  // Additional Synthesis Controls
-  kParamGravity,
-  kParamTimbreShift,
-  kParamHarmonicBlend,
+
+  // === GLOBAL CONTROLS ===
   kParamVoices,
   kParamScaleType,
-  
-  // Global Controls
   kParamGain,
-  kParamMPEEnable,
-  
+
   kNumParams
 };
 
@@ -45,29 +59,48 @@ enum EScaleTypes
   kNumScaleTypes
 };
 
-// Control Tags for UI
+// Control Tags for UI organized by section
 enum ECtrlTags
 {
+  // Oscillator Section
+  kCtrlWaveform = 0,
+  kCtrlWaveformDisplay,
+
+  // Filter Section
+  kCtrlFilterCutoff,
+  kCtrlFilterResonance,
+
+  // Envelope Section
+  kCtrlAttack,
+  kCtrlDecay,
+  kCtrlSustain,
+  kCtrlRelease,
+  kCtrlEnvelopeDisplay,
+
+  // Effects Section
+  kCtrlDelayTime,
+  kCtrlDelayFeedback,
+  kCtrlDelayMix,
+  kCtrlReverbMix,
+
   // Five Sacred Controls
-  kCtrlBrilliance = 0,
+  kCtrlBrilliance,
   kCtrlMotion,
-  kCtrlSpace, 
+  kCtrlSpace,
   kCtrlWarmth,
   kCtrlPurity,
-  
-  // Additional Controls
-  kCtrlGravity,
-  kCtrlTimbreShift,
-  kCtrlHarmonicBlend,
+
+  // Global Controls
   kCtrlVoices,
   kCtrlScaleType,
   kCtrlGain,
-  kCtrlMPE,
-  
-  // Visual Elements
   kCtrlMeter,
-  kCtrlConstellation,
-  
+
+  // Preset Section
+  kCtrlPresetName,
+  kCtrlPresetPrev,
+  kCtrlPresetNext,
+
   kNumCtrlTags
 };
 
