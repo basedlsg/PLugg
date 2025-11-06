@@ -7,56 +7,106 @@ CelestialSynthDSP::CelestialSynthDSP()
   // Initialize voices
   for (int i = 0; i < kMaxVoices; i++)
     mVoices[i] = std::make_unique<CelestialVoice>();
+
+  // Clear delay buffers
+  std::memset(mDelayBufferL, 0, sizeof(mDelayBufferL));
+  std::memset(mDelayBufferR, 0, sizeof(mDelayBufferR));
+}
+
+// CelestialVoice waveform generation
+double CelestialVoice::GenerateWaveform()
+{
+  double output = 0.0;
+
+  switch (mWaveform)
+  {
+    case WaveformType::kSine:
+      output = std::sin(mPhase * 2.0 * 3.14159265359);
+      break;
+
+    case WaveformType::kSaw:
+      output = 2.0 * (mPhase - 0.5);
+      break;
+
+    case WaveformType::kSquare:
+      output = (mPhase < 0.5) ? 1.0 : -1.0;
+      break;
+
+    case WaveformType::kTriangle:
+      if (mPhase < 0.5)
+        output = 4.0 * mPhase - 1.0;
+      else
+        output = 3.0 - 4.0 * mPhase;
+      break;
+  }
+
+  // Advance phase
+  mPhase += mPhaseIncrement;
+  if (mPhase >= 1.0)
+    mPhase -= 1.0;
+
+  return output;
+}
+
+void CelestialVoice::SetFrequency(double freq)
+{
+  mFrequency = freq;
+  mPhaseIncrement = freq / mSampleRate;
+  mOsc.SetFreqCPS(freq); // Keep for sine wave
+}
+
+void CelestialVoice::SetSampleRate(double sr)
+{
+  mSampleRate = sr;
+  mOsc.SetSampleRate(sr);
+  mFilter.SetSampleRate(sr);
+  mEnvelope.SetSampleRate(sr);
+  mPhaseIncrement = mFrequency / mSampleRate;
 }
 
 // CelestialVoice implementation
 bool CelestialVoice::GetBusy() const
 {
-  // Voice is busy if it has gain AND is either not releasing or still in release phase
-  return mVoiceGain > 0.001 && (mSamplesReleased == 0 || mSamplesReleased < kReleaseSamples);
+  return mEnvelope.IsActive();
 }
 
 void CelestialVoice::Trigger(double level, bool isRetrigger)
 {
   mVoiceGain = level;
-  mSamplesReleased = 0;
+  mEnvelope.Trigger();
   if (!isRetrigger)
+  {
+    mPhase = 0.0;
     mOsc.Reset();
+    mFilter.Reset();
+  }
 }
 
 void CelestialVoice::Release()
 {
-  // Start release phase (must be > 0 to trigger envelope)
-  mSamplesReleased = 1;
+  mEnvelope.Release();
 }
 
 void CelestialVoice::ProcessSamplesAccumulating(sample** inputs, sample** outputs, int nInputs, int nOutputs, int startIdx, int nSamples)
 {
   for (int s = startIdx; s < startIdx + nSamples; s++)
   {
-    double envelope = mVoiceGain;
+    // Generate waveform
+    double oscOutput = (mWaveform == WaveformType::kSine) ? mOsc.Process() : GenerateWaveform();
 
-    // Simple release envelope
-    if (mSamplesReleased > 0)
-    {
-      envelope *= 1.0 - (double)mSamplesReleased / kReleaseSamples;
-      mSamplesReleased++;
+    // Apply filter
+    double filtered = mFilter.Process(oscOutput);
 
-      // Mark as free when release is complete
-      if (mSamplesReleased >= kReleaseSamples)
-      {
-        mVoiceGain = 0.0;
-        mNote = -1; // Clear note
-      }
-    }
+    // Get envelope value
+    double envelope = mEnvelope.Process();
 
-    // Generate oscillator output
-    double oscOutput = mOsc.Process();
+    // Apply velocity and envelope
+    double sample = filtered * envelope * mVoiceGain;
 
-    // Apply envelope and accumulate to outputs
+    // Accumulate to outputs
     for (int c = 0; c < nOutputs; c++)
     {
-      outputs[c][s] += oscOutput * envelope * 0.3; // Scale output
+      outputs[c][s] += sample * 0.3; // Scale output
     }
   }
 }
@@ -129,8 +179,32 @@ void CelestialSynthDSP::ProcessBlock(sample** inputs, sample** outputs, int nInp
       // Apply master gain
       sample *= mGain;
 
+      // Apply delay effect
+      if (mDelayMix > 0.01)
+      {
+        int delaySamples = (int)((mDelayTime / 1000.0) * mSampleRate);
+        delaySamples = std::min(delaySamples, kMaxDelayBufferSize - 1);
+
+        int readPos = mDelayWritePos - delaySamples;
+        if (readPos < 0) readPos += kMaxDelayBufferSize;
+
+        double delayedSample = (c == 0) ? mDelayBufferL[readPos] : mDelayBufferR[readPos];
+        sample = sample * (1.0 - mDelayMix) + delayedSample * mDelayMix;
+
+        // Write to delay buffer with feedback
+        if (c == 0)
+          mDelayBufferL[mDelayWritePos] = sample + delayedSample * mDelayFeedback;
+        else
+          mDelayBufferR[mDelayWritePos] = sample + delayedSample * mDelayFeedback;
+      }
+
       outputs[c][s] = sample;
     }
+
+    // Advance delay write position
+    mDelayWritePos++;
+    if (mDelayWritePos >= kMaxDelayBufferSize)
+      mDelayWritePos = 0;
   }
 }
 
@@ -167,8 +241,16 @@ void CelestialSynthDSP::ProcessMidiMsg(const IMidiMsg& msg)
         // Apply timbre shift
         freq *= std::pow(2.0, mTimbreShift * 0.1);
 
+        // Set voice parameters
         mVoices[v]->SetFrequency(freq);
-        mVoices[v]->SetNote(note, velocity); // Track which note this voice is playing
+        mVoices[v]->SetWaveform(mWaveform);
+        mVoices[v]->SetFilterCutoff(mFilterCutoff);
+        mVoices[v]->SetFilterResonance(mFilterResonance);
+        mVoices[v]->SetAttack(mAttack);
+        mVoices[v]->SetDecay(mDecay);
+        mVoices[v]->SetSustain(mSustain);
+        mVoices[v]->SetReleaseTime(mRelease);
+        mVoices[v]->SetNote(note, velocity);
 
         // Apply velocity scaling with warmth
         double scaledVelocity = (velocity / 127.0) * (0.5 + mWarmth * 0.5);
@@ -194,11 +276,24 @@ void CelestialSynthDSP::ProcessMidiMsg(const IMidiMsg& msg)
 void CelestialSynthDSP::Reset(double sampleRate, int blockSize)
 {
   mSampleRate = sampleRate;
-  
+
   // Initialize all voices
   for (int v = 0; v < kMaxVoices; v++)
   {
     mVoices[v]->SetSampleRate(sampleRate);
+  }
+
+  // Clear delay buffers
+  std::memset(mDelayBufferL, 0, sizeof(mDelayBufferL));
+  std::memset(mDelayBufferR, 0, sizeof(mDelayBufferR));
+  mDelayWritePos = 0;
+}
+
+void CelestialSynthDSP::SetWaveform(int wf)
+{
+  if (wf >= 0 && wf < (int)WaveformType::kNumWaveforms)
+  {
+    mWaveform = static_cast<WaveformType>(wf);
   }
 }
 
