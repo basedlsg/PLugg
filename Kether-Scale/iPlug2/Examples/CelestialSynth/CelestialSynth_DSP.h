@@ -357,6 +357,120 @@ private:
   int mAllpassPos1 = 0, mAllpassPos2 = 0;
 };
 
+// LFO waveform types
+enum class LFOWaveform
+{
+  kSine = 0,
+  kTriangle,
+  kSawUp,
+  kSawDown,
+  kSquare,
+  kRandom,  // Sample & Hold (S&H)
+  kNumLFOWaveforms
+};
+
+// Low Frequency Oscillator for modulation
+class LFO
+{
+public:
+  LFO() = default;
+
+  void SetSampleRate(double sr)
+  {
+    mSampleRate = sr;
+    UpdatePhaseIncrement();
+  }
+
+  void SetRate(double hz)
+  {
+    mRateHz = std::max(0.01, std::min(hz, 20.0));  // Clamp to 0.01 Hz - 20 Hz
+    UpdatePhaseIncrement();
+  }
+
+  void SetWaveform(LFOWaveform wf) { mWaveform = wf; }
+  void SetBipolar(bool bipolar) { mBipolar = bipolar; }
+
+  void Reset()
+  {
+    mPhase = 0.0;
+    mRandomValue = 0.0;
+    mPreviousPhase = 0.0;
+  }
+
+  double Process()
+  {
+    double output = 0.0;
+
+    switch (mWaveform)
+    {
+      case LFOWaveform::kSine:
+        output = std::sin(mPhase * 2.0 * 3.14159265359);
+        break;
+
+      case LFOWaveform::kTriangle:
+        // Triangle wave: rises from -1 to +1, then falls back
+        if (mPhase < 0.5)
+          output = (mPhase * 4.0) - 1.0;  // Rising: -1 to +1
+        else
+          output = 3.0 - (mPhase * 4.0);  // Falling: +1 to -1
+        break;
+
+      case LFOWaveform::kSawUp:
+        // Sawtooth rising from -1 to +1
+        output = (mPhase * 2.0) - 1.0;
+        break;
+
+      case LFOWaveform::kSawDown:
+        // Sawtooth falling from +1 to -1
+        output = 1.0 - (mPhase * 2.0);
+        break;
+
+      case LFOWaveform::kSquare:
+        // Square wave: alternates between +1 and -1
+        output = (mPhase < 0.5) ? 1.0 : -1.0;
+        break;
+
+      case LFOWaveform::kRandom:
+        // Sample & Hold: generate new random value when phase wraps
+        if (mPhase < mPreviousPhase)  // Phase wrapped around
+        {
+          // Generate random value between -1 and +1
+          mRandomValue = ((double)rand() / RAND_MAX) * 2.0 - 1.0;
+        }
+        output = mRandomValue;
+        break;
+    }
+
+    mPreviousPhase = mPhase;
+
+    // Advance phase
+    mPhase += mPhaseIncrement;
+    if (mPhase >= 1.0)
+      mPhase -= 1.0;
+
+    // Convert to unipolar if needed (0 to 1)
+    if (!mBipolar)
+      output = (output + 1.0) * 0.5;
+
+    return output;
+  }
+
+private:
+  void UpdatePhaseIncrement()
+  {
+    mPhaseIncrement = mRateHz / mSampleRate;
+  }
+
+  double mSampleRate = 44100.0;
+  double mRateHz = 1.0;  // Default 1 Hz
+  double mPhase = 0.0;
+  double mPhaseIncrement = 0.0;
+  double mPreviousPhase = 0.0;
+  double mRandomValue = 0.0;
+  LFOWaveform mWaveform = LFOWaveform::kSine;
+  bool mBipolar = true;  // Default bipolar (-1 to +1)
+};
+
 // Voice class
 class CelestialVoice : public SynthVoice
 {
@@ -388,6 +502,29 @@ public:
 private:
   double GenerateWaveform();
 
+  // PolyBLEP anti-aliasing correction
+  // Removes discontinuities that cause aliasing in saw/square/triangle waves
+  double PolyBLEP(double t, double dt)
+  {
+    // t = current phase position (0-1)
+    // dt = phase increment per sample
+
+    // Discontinuity at t=0 (phase wraparound)
+    if (t < dt)
+    {
+      t = t / dt;
+      return t + t - t * t - 1.0;
+    }
+    // Discontinuity at t=1 (phase wraparound)
+    else if (t > 1.0 - dt)
+    {
+      t = (t - 1.0) / dt;
+      return t * t + t + t + 1.0;
+    }
+
+    return 0.0;
+  }
+
   FastSinOscillator<sample> mOsc;
   SimpleLowpassFilter mFilter;
   ADSREnvelope mEnvelope;
@@ -397,6 +534,7 @@ private:
   double mPhase = 0.0;
   double mPhaseIncrement = 0.0;
   double mSampleRate = 44100.0;
+  double mTriangleState = 0.0; // Integrator state for triangle waveform
 
   double mVoiceGain = 0.0;
   int mNote = -1;
@@ -435,6 +573,20 @@ public:
   void SetDelayTime(double value) { mDelayTime = value; }
   void SetDelayFeedback(double value) { mDelayFeedback = value; }
   void SetDelayMix(double value) { mDelayMix = value; }
+
+  // LFO Controls
+  void SetLFO1Rate(double hz) { mLFO1Rate = hz; mLFO1.SetRate(hz); }
+  void SetLFO2Rate(double hz) { mLFO2Rate = hz; mLFO2.SetRate(hz); }
+  void SetLFO1Waveform(int wf)
+  {
+    if (wf >= 0 && wf < (int)LFOWaveform::kNumLFOWaveforms)
+      mLFO1.SetWaveform(static_cast<LFOWaveform>(wf));
+  }
+  void SetLFO2Waveform(int wf)
+  {
+    if (wf >= 0 && wf < (int)LFOWaveform::kNumLFOWaveforms)
+      mLFO2.SetWaveform(static_cast<LFOWaveform>(wf));
+  }
 
   // Additional Controls
   void SetTimbreShift(double value) { mTimbreShift = value; }
@@ -478,6 +630,14 @@ private:
   // Reverb instances (stereo)
   SimpleReverb mReverbL;
   SimpleReverb mReverbR;
+
+  // LFO instances
+  LFO mLFO1;
+  LFO mLFO2;
+
+  // LFO parameters
+  double mLFO1Rate = 1.0;  // Hz (0.01 - 20 Hz)
+  double mLFO2Rate = 2.0;  // Hz (0.01 - 20 Hz)
 
   // Additional parameter values
   double mTimbreShift = 0.0;

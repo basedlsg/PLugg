@@ -28,6 +28,12 @@ CelestialSynth::CelestialSynth(const InstanceInfo& info)
   GetParam(kParamDelayMix)->InitDouble("Delay Mix", 0.2, 0.0, 1.0, 0.01, "");
   GetParam(kParamReverbMix)->InitDouble("Reverb Mix", 0.0, 0.0, 1.0, 0.01, "");
 
+  // === LFO SECTION ===
+  GetParam(kParamLFO1Rate)->InitDouble("LFO 1 Rate", 1.0, 0.01, 20.0, 0.01, "Hz", IParam::kFlagsNone, "", IParam::ShapePowCurve(2.0));
+  GetParam(kParamLFO1Waveform)->InitEnum("LFO 1 Waveform", 0, {"Sine", "Triangle", "Saw Up", "Saw Down", "Square", "Random"});
+  GetParam(kParamLFO2Rate)->InitDouble("LFO 2 Rate", 2.0, 0.01, 20.0, 0.01, "Hz", IParam::kFlagsNone, "", IParam::ShapePowCurve(2.0));
+  GetParam(kParamLFO2Waveform)->InitEnum("LFO 2 Waveform", 0, {"Sine", "Triangle", "Saw Up", "Saw Down", "Square", "Random"});
+
   // === FIVE SACRED CONTROLS ===
   GetParam(kParamBrilliance)->InitDouble("Brilliance", 0.5, 0.0, 1.0, 0.01, "");
   GetParam(kParamMotion)->InitDouble("Motion", 0.3, 0.0, 1.0, 0.01, "");
@@ -366,6 +372,12 @@ void CelestialSynth::OnReset()
   mDSP.SetDelayMix(GetParam(kParamDelayMix)->Value());
   // Note: Reverb not yet implemented in DSP
 
+  // LFOs
+  mDSP.SetLFO1Rate(GetParam(kParamLFO1Rate)->Value());
+  mDSP.SetLFO1Waveform(GetParam(kParamLFO1Waveform)->Int());
+  mDSP.SetLFO2Rate(GetParam(kParamLFO2Rate)->Value());
+  mDSP.SetLFO2Waveform(GetParam(kParamLFO2Waveform)->Int());
+
   // Five Sacred Controls
   mDSP.SetBrilliance(GetParam(kParamBrilliance)->Value());
   mDSP.SetMotion(GetParam(kParamMotion)->Value());
@@ -425,6 +437,20 @@ void CelestialSynth::OnParamChange(int paramIdx)
       break;
     case kParamReverbMix:
       // Reverb not yet implemented in DSP
+      break;
+
+    // === LFO SECTION ===
+    case kParamLFO1Rate:
+      mDSP.SetLFO1Rate(GetParam(paramIdx)->Value());
+      break;
+    case kParamLFO1Waveform:
+      mDSP.SetLFO1Waveform(GetParam(paramIdx)->Int());
+      break;
+    case kParamLFO2Rate:
+      mDSP.SetLFO2Rate(GetParam(paramIdx)->Value());
+      break;
+    case kParamLFO2Waveform:
+      mDSP.SetLFO2Waveform(GetParam(paramIdx)->Int());
       break;
 
     // === FIVE SACRED CONTROLS ===

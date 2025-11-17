@@ -13,7 +13,7 @@ CelestialSynthDSP::CelestialSynthDSP()
   std::memset(mDelayBufferR, 0, sizeof(mDelayBufferR));
 }
 
-// CelestialVoice waveform generation
+// CelestialVoice waveform generation with PolyBLEP anti-aliasing
 double CelestialVoice::GenerateWaveform()
 {
   double output = 0.0;
@@ -21,22 +21,37 @@ double CelestialVoice::GenerateWaveform()
   switch (mWaveform)
   {
     case WaveformType::kSine:
+      // Sine is already bandlimited, no correction needed
       output = std::sin(mPhase * 2.0 * 3.14159265359);
       break;
 
     case WaveformType::kSaw:
+      // Naive sawtooth
       output = 2.0 * (mPhase - 0.5);
+      // Apply PolyBLEP correction at discontinuity
+      output -= PolyBLEP(mPhase, mPhaseIncrement);
       break;
 
     case WaveformType::kSquare:
+      // Naive square wave
       output = (mPhase < 0.5) ? 1.0 : -1.0;
+      // Apply PolyBLEP correction at both transitions (0→1 and 1→0)
+      output += PolyBLEP(mPhase, mPhaseIncrement);           // Transition at phase=0
+      output -= PolyBLEP(fmod(mPhase + 0.5, 1.0), mPhaseIncrement); // Transition at phase=0.5
       break;
 
     case WaveformType::kTriangle:
-      if (mPhase < 0.5)
-        output = 4.0 * mPhase - 1.0;
-      else
-        output = 3.0 - 4.0 * mPhase;
+      // Triangle is the integrated square wave
+      // First generate anti-aliased square
+      double square = (mPhase < 0.5) ? 1.0 : -1.0;
+      square += PolyBLEP(mPhase, mPhaseIncrement);
+      square -= PolyBLEP(fmod(mPhase + 0.5, 1.0), mPhaseIncrement);
+
+      // Integrate to get triangle (leaky integrator)
+      output = mPhaseIncrement * square + (1.0 - mPhaseIncrement) * mTriangleState;
+      mTriangleState = output;
+      // Scale and offset
+      output *= 4.0;
       break;
   }
 
@@ -140,6 +155,17 @@ void CelestialSynthDSP::ProcessBlock(sample** inputs, sample** outputs, int nInp
   {
     for (int s = 0; s < nFrames; s++)
     {
+      // Process LFOs once per sample (not per channel)
+      // LFO values will be used in Week 5 (Modulation Matrix)
+      if (c == 0)  // Only process once per sample, not per channel
+      {
+        double lfo1Value = mLFO1.Process();  // -1 to +1 (bipolar)
+        double lfo2Value = mLFO2.Process();  // -1 to +1 (bipolar)
+        // TODO WEEK 5: Use LFO values for modulation routing
+        (void)lfo1Value;  // Suppress unused variable warning
+        (void)lfo2Value;  // Suppress unused variable warning
+      }
+
       double sample = outputs[c][s];
 
       // BRILLIANCE - High frequency emphasis/filtering
@@ -304,6 +330,14 @@ void CelestialSynthDSP::Reset(double sampleRate, int blockSize)
   mReverbR.SetSampleRate(sampleRate);
   mReverbL.Reset();
   mReverbR.Reset();
+
+  // Initialize LFOs
+  mLFO1.SetSampleRate(sampleRate);
+  mLFO2.SetSampleRate(sampleRate);
+  mLFO1.SetRate(mLFO1Rate);
+  mLFO2.SetRate(mLFO2Rate);
+  mLFO1.Reset();
+  mLFO2.Reset();
 }
 
 void CelestialSynthDSP::SetWaveform(int wf)

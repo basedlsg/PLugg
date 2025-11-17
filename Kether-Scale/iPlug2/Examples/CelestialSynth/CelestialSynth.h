@@ -29,6 +29,12 @@ enum EParams
   kParamDelayMix,
   kParamReverbMix,
 
+  // === LFO SECTION ===
+  kParamLFO1Rate,
+  kParamLFO1Waveform,
+  kParamLFO2Rate,
+  kParamLFO2Waveform,
+
   // === FIVE SACRED CONTROLS (Character) ===
   kParamBrilliance,
   kParamMotion,
