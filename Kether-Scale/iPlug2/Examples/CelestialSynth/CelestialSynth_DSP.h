@@ -471,6 +471,43 @@ private:
   bool mBipolar = true;  // Default bipolar (-1 to +1)
 };
 
+// Modulation source types
+enum class ModSource
+{
+  kNone = 0,
+  kLFO1,
+  kLFO2,
+  kAmpEnv,        // Amplitude envelope (already exists)
+  kVelocity,      // MIDI velocity
+  kModWheel,      // MIDI CC 1 (Mod Wheel)
+  kNumModSources
+};
+
+// Modulation destination types
+enum class ModDestination
+{
+  kNone = 0,
+  kPitch,         // Oscillator pitch (vibrato, detune)
+  kFilterCutoff,  // Filter cutoff frequency (sweeps, wah)
+  kFilterRes,     // Filter resonance (dynamic resonance)
+  kAmplitude,     // Voice amplitude (tremolo)
+  kPan,           // Stereo panning (auto-pan)
+  kNumModDestinations
+};
+
+// Modulation routing slot
+struct ModulationSlot
+{
+  ModSource source = ModSource::kNone;
+  ModDestination dest = ModDestination::kNone;
+  double depth = 0.0;  // -1.0 to +1.0 (modulation amount)
+  bool enabled = false;
+
+  ModulationSlot() = default;
+  ModulationSlot(ModSource src, ModDestination dst, double d, bool en = true)
+    : source(src), dest(dst), depth(d), enabled(en) {}
+};
+
 // Voice class
 class CelestialVoice : public SynthVoice
 {
@@ -588,12 +625,23 @@ public:
       mLFO2.SetWaveform(static_cast<LFOWaveform>(wf));
   }
 
+  // Modulation Matrix Controls
+  void SetModSlot(int slotIdx, ModSource src, ModDestination dest, double depth, bool enabled = true)
+  {
+    if (slotIdx >= 0 && slotIdx < kNumModSlots)
+    {
+      mModSlots[slotIdx] = ModulationSlot(src, dest, depth, enabled);
+    }
+  }
+
   // Additional Controls
   void SetTimbreShift(double value) { mTimbreShift = value; }
   void SetVoiceCount(int count) { mVoiceCount = count; }
   void SetGain(double gain) { mGain = gain; }
 
 private:
+  void InitializeDefaultModulations();
+
   static const int kMaxVoices = 16;
   std::unique_ptr<CelestialVoice> mVoices[kMaxVoices];
   PentatonicScaleSystem mScaleSystem;
@@ -638,6 +686,16 @@ private:
   // LFO parameters
   double mLFO1Rate = 1.0;  // Hz (0.01 - 20 Hz)
   double mLFO2Rate = 2.0;  // Hz (0.01 - 20 Hz)
+
+  // Modulation Matrix (8 routing slots for MVP)
+  static const int kNumModSlots = 8;
+  ModulationSlot mModSlots[kNumModSlots];
+
+  // Modulation source values (updated per-sample)
+  double mModSourceValues[static_cast<int>(ModSource::kNumModSources)] = {0};
+
+  // MIDI controller values
+  double mModWheelValue = 0.0;  // MIDI CC 1 (0.0 to 1.0)
 
   // Additional parameter values
   double mTimbreShift = 0.0;

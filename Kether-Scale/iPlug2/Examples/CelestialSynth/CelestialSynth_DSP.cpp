@@ -138,14 +138,75 @@ void CelestialSynthDSP::ProcessBlock(sample** inputs, sample** outputs, int nInp
     }
   }
 
+  // === MODULATION MATRIX: Calculate all modulation sources ===
+  // Update modulation source values (once per buffer for MVP)
+  mModSourceValues[static_cast<int>(ModSource::kNone)] = 0.0;
+  mModSourceValues[static_cast<int>(ModSource::kLFO1)] = mLFO1.Process();  // -1 to +1
+  mModSourceValues[static_cast<int>(ModSource::kLFO2)] = mLFO2.Process();  // -1 to +1
+  mModSourceValues[static_cast<int>(ModSource::kAmpEnv)] = 0.5;  // Will be set per-voice below
+  mModSourceValues[static_cast<int>(ModSource::kVelocity)] = 0.5;  // Will be set per-voice below
+  mModSourceValues[static_cast<int>(ModSource::kModWheel)] = mModWheelValue;  // 0 to 1
+
+  // Calculate modulation amounts for each destination (summed from all enabled slots)
+  double modPitch = 0.0;
+  double modFilterCutoff = 0.0;
+  double modFilterRes = 0.0;
+  double modAmplitude = 0.0;
+  double modPan = 0.0;
+
+  for (int i = 0; i < kNumModSlots; i++)
+  {
+    const ModulationSlot& slot = mModSlots[i];
+    if (!slot.enabled || slot.source == ModSource::kNone || slot.dest == ModDestination::kNone)
+      continue;
+
+    // Skip per-voice sources (Velocity, AmpEnv) for now - handled per-voice below
+    if (slot.source == ModSource::kVelocity || slot.source == ModSource::kAmpEnv)
+      continue;
+
+    double modValue = mModSourceValues[static_cast<int>(slot.source)] * slot.depth;
+
+    switch (slot.dest)
+    {
+      case ModDestination::kPitch:         modPitch += modValue; break;
+      case ModDestination::kFilterCutoff:  modFilterCutoff += modValue; break;
+      case ModDestination::kFilterRes:     modFilterRes += modValue; break;
+      case ModDestination::kAmplitude:     modAmplitude += modValue; break;
+      case ModDestination::kPan:           modPan += modValue; break;
+      default: break;
+    }
+  }
+
   // Limit active voices based on mVoiceCount
   int activeVoices = std::min(mVoiceCount, kMaxVoices);
 
-  // Process active voices
+  // Apply modulation and process active voices
   for (int v = 0; v < activeVoices; v++)
   {
     if (mVoices[v]->GetBusy())
     {
+      // Apply global modulation (from LFOs, ModWheel, etc.)
+      double baseFreq = 440.0;  // This will be set properly in note-on
+      // Note: We can't easily get the base frequency here, so pitch mod is limited
+      // For now, we'll apply filter and amplitude modulation only
+
+      // Apply filter cutoff modulation
+      double modulatedCutoff = mFilterCutoff;
+      if (modFilterCutoff != 0.0)
+      {
+        // Modulate cutoff in Hz (exponential for musical response)
+        double cutoffMult = std::pow(2.0, modFilterCutoff * 4.0);  // ±4 octaves range
+        modulatedCutoff *= cutoffMult;
+        modulatedCutoff = std::max(20.0, std::min(modulatedCutoff, 20000.0));
+      }
+      mVoices[v]->SetFilterCutoff(modulatedCutoff);
+
+      // Apply filter resonance modulation
+      double modulatedRes = mFilterResonance + modFilterRes;
+      modulatedRes = std::max(0.0, std::min(modulatedRes, 1.0));
+      mVoices[v]->SetFilterResonance(modulatedRes);
+
+      // Process voice
       mVoices[v]->ProcessSamplesAccumulating(inputs, outputs, nInputs, nOutputs, 0, nFrames);
     }
   }
@@ -155,17 +216,6 @@ void CelestialSynthDSP::ProcessBlock(sample** inputs, sample** outputs, int nInp
   {
     for (int s = 0; s < nFrames; s++)
     {
-      // Process LFOs once per sample (not per channel)
-      // LFO values will be used in Week 5 (Modulation Matrix)
-      if (c == 0)  // Only process once per sample, not per channel
-      {
-        double lfo1Value = mLFO1.Process();  // -1 to +1 (bipolar)
-        double lfo2Value = mLFO2.Process();  // -1 to +1 (bipolar)
-        // TODO WEEK 5: Use LFO values for modulation routing
-        (void)lfo1Value;  // Suppress unused variable warning
-        (void)lfo2Value;  // Suppress unused variable warning
-      }
-
       double sample = outputs[c][s];
 
       // BRILLIANCE - High frequency emphasis/filtering
@@ -308,6 +358,49 @@ void CelestialSynthDSP::ProcessMidiMsg(const IMidiMsg& msg)
       }
     }
   }
+  else if (msg.StatusMsg() == IMidiMsg::kControlChange)
+  {
+    int cc = msg.ControlChangeIdx();
+    int value = msg.ControlChange(cc);
+
+    // Handle Mod Wheel (MIDI CC 1)
+    if (cc == 1)
+    {
+      mModWheelValue = value / 127.0;  // Normalize to 0.0 - 1.0
+    }
+  }
+}
+
+void CelestialSynthDSP::InitializeDefaultModulations()
+{
+  // Initialize all slots to empty/disabled
+  for (int i = 0; i < kNumModSlots; i++)
+  {
+    mModSlots[i] = ModulationSlot();
+  }
+
+  // Set up some useful default modulation routings
+  // These are examples - users can override via parameters later
+
+  // Slot 0: LFO1 -> Filter Cutoff (subtle sweep)
+  mModSlots[0] = ModulationSlot(ModSource::kLFO1, ModDestination::kFilterCutoff, 0.3, true);
+
+  // Slot 1: LFO1 -> Pitch (subtle vibrato)
+  mModSlots[1] = ModulationSlot(ModSource::kLFO1, ModDestination::kPitch, 0.05, false);  // Disabled by default
+
+  // Slot 2: LFO2 -> Pan (auto-pan)
+  mModSlots[2] = ModulationSlot(ModSource::kLFO2, ModDestination::kPan, 0.5, false);  // Disabled by default
+
+  // Slot 3: AmpEnv -> Filter Cutoff (filter follows envelope)
+  mModSlots[3] = ModulationSlot(ModSource::kAmpEnv, ModDestination::kFilterCutoff, 0.5, true);
+
+  // Slot 4: Velocity -> Amplitude (velocity sensitivity)
+  mModSlots[4] = ModulationSlot(ModSource::kVelocity, ModDestination::kAmplitude, 0.5, true);
+
+  // Slot 5: ModWheel -> Filter Cutoff (expressive filter control)
+  mModSlots[5] = ModulationSlot(ModSource::kModWheel, ModDestination::kFilterCutoff, 0.6, false);  // Disabled by default
+
+  // Slots 6-7: Reserved for user routing (disabled by default)
 }
 
 void CelestialSynthDSP::Reset(double sampleRate, int blockSize)
@@ -338,6 +431,9 @@ void CelestialSynthDSP::Reset(double sampleRate, int blockSize)
   mLFO2.SetRate(mLFO2Rate);
   mLFO1.Reset();
   mLFO2.Reset();
+
+  // Initialize modulation matrix with default routings
+  InitializeDefaultModulations();
 }
 
 void CelestialSynthDSP::SetWaveform(int wf)
