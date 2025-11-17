@@ -191,33 +191,170 @@ private:
   int mSampleCount = 0;
 };
 
-// Simple lowpass filter
+// State variable filter with working resonance (2-pole, 12dB/octave)
 class SimpleLowpassFilter
 {
 public:
-  void SetSampleRate(double sr) { mSampleRate = sr; }
+  void SetSampleRate(double sr)
+  {
+    mSampleRate = sr;
+    UpdateCoefficients();
+  }
 
   void SetCutoff(double freq)
   {
-    double omega = 2.0 * 3.14159265359 * freq / mSampleRate;
-    mCoeff = std::exp(-omega);
+    mCutoff = std::max(20.0, std::min(freq, mSampleRate * 0.49)); // Clamp to valid range
+    UpdateCoefficients();
   }
 
-  void SetResonance(double res) { mResonance = res; }
+  void SetResonance(double res)
+  {
+    mResonance = res; // 0.0 to 1.0 range
+    UpdateCoefficients();
+  }
 
   double Process(double input)
   {
-    mZ1 = input * (1.0 - mCoeff) + mZ1 * mCoeff;
-    return mZ1;
+    // Chamberlin state variable filter
+    // This actually implements resonance properly!
+    mLowpass = mLowpass + mF * mBandpass;
+    mHighpass = input - mLowpass - mQ * mBandpass;
+    mBandpass = mBandpass + mF * mHighpass;
+
+    return mLowpass; // Return lowpass output
   }
 
-  void Reset() { mZ1 = 0.0; }
+  void Reset()
+  {
+    mLowpass = 0.0;
+    mBandpass = 0.0;
+    mHighpass = 0.0;
+  }
+
+private:
+  void UpdateCoefficients()
+  {
+    // Calculate filter coefficients
+    // f = 2 * sin(π * cutoff / sampleRate)
+    double omega = 3.14159265359 * mCutoff / mSampleRate;
+    mF = 2.0 * std::sin(omega);
+
+    // Q = resonance amount (0.5 = no resonance, 10.0 = self-oscillation)
+    // Map user's 0-1 range to 0.5-10.0 range
+    mQ = 0.5 + (mResonance * 9.5);
+    // Invert Q for the algorithm (higher Q = less damping)
+    mQ = 1.0 / mQ;
+  }
+
+  double mSampleRate = 44100.0;
+  double mCutoff = 20000.0;
+  double mResonance = 0.0;
+
+  // Filter coefficients
+  double mF = 1.0;  // Frequency coefficient
+  double mQ = 1.0;  // Resonance coefficient (inverted)
+
+  // Filter state
+  double mLowpass = 0.0;
+  double mBandpass = 0.0;
+  double mHighpass = 0.0;
+};
+
+// Simple Schroeder reverb (4 comb filters + 2 allpass filters)
+class SimpleReverb
+{
+public:
+  SimpleReverb()
+  {
+    Reset();
+  }
+
+  void SetSampleRate(double sr)
+  {
+    mSampleRate = sr;
+    Reset();
+  }
+
+  void Reset()
+  {
+    // Clear all delay buffers
+    std::fill(std::begin(mCombBuffer1), std::end(mCombBuffer1), 0.0);
+    std::fill(std::begin(mCombBuffer2), std::end(mCombBuffer2), 0.0);
+    std::fill(std::begin(mCombBuffer3), std::end(mCombBuffer3), 0.0);
+    std::fill(std::begin(mCombBuffer4), std::end(mCombBuffer4), 0.0);
+    std::fill(std::begin(mAllpass1), std::end(mAllpass1), 0.0);
+    std::fill(std::begin(mAllpass2), std::end(mAllpass2), 0.0);
+
+    mCombPos1 = mCombPos2 = mCombPos3 = mCombPos4 = 0;
+    mAllpassPos1 = mAllpassPos2 = 0;
+  }
+
+  double Process(double input)
+  {
+    // Comb filter delays (in samples at 44.1kHz)
+    // These create the reverb tail
+    const int combDelay1 = 1557;
+    const int combDelay2 = 1617;
+    const int combDelay3 = 1491;
+    const int combDelay4 = 1422;
+    const double combGain = 0.84; // Feedback gain for reverb tail
+
+    // Process 4 parallel comb filters
+    double comb1 = mCombBuffer1[mCombPos1];
+    mCombBuffer1[mCombPos1] = input + comb1 * combGain;
+    mCombPos1 = (mCombPos1 + 1) % combDelay1;
+
+    double comb2 = mCombBuffer2[mCombPos2];
+    mCombBuffer2[mCombPos2] = input + comb2 * combGain;
+    mCombPos2 = (mCombPos2 + 1) % combDelay2;
+
+    double comb3 = mCombBuffer3[mCombPos3];
+    mCombBuffer3[mCombPos3] = input + comb3 * combGain;
+    mCombPos3 = (mCombPos3 + 1) % combDelay3;
+
+    double comb4 = mCombBuffer4[mCombPos4];
+    mCombBuffer4[mCombPos4] = input + comb4 * combGain;
+    mCombPos4 = (mCombPos4 + 1) % combDelay4;
+
+    // Sum comb filter outputs
+    double combSum = (comb1 + comb2 + comb3 + comb4) * 0.25;
+
+    // Allpass filter delays (for diffusion)
+    const int allpassDelay1 = 225;
+    const int allpassDelay2 = 341;
+    const double allpassGain = 0.5;
+
+    // First allpass filter
+    double allpass1Out = mAllpass1[mAllpassPos1];
+    double allpass1In = combSum + allpass1Out * allpassGain;
+    mAllpass1[mAllpassPos1] = allpass1In;
+    allpass1Out = allpass1Out - allpass1In * allpassGain;
+    mAllpassPos1 = (mAllpassPos1 + 1) % allpassDelay1;
+
+    // Second allpass filter
+    double allpass2Out = mAllpass2[mAllpassPos2];
+    double allpass2In = allpass1Out + allpass2Out * allpassGain;
+    mAllpass2[mAllpassPos2] = allpass2In;
+    allpass2Out = allpass2Out - allpass2In * allpassGain;
+    mAllpassPos2 = (mAllpassPos2 + 1) % allpassDelay2;
+
+    return allpass2Out;
+  }
 
 private:
   double mSampleRate = 44100.0;
-  double mCoeff = 0.99;
-  double mResonance = 0.0;
-  double mZ1 = 0.0;
+
+  // Comb filter buffers
+  double mCombBuffer1[1557] = {0};
+  double mCombBuffer2[1617] = {0};
+  double mCombBuffer3[1491] = {0};
+  double mCombBuffer4[1422] = {0};
+  int mCombPos1 = 0, mCombPos2 = 0, mCombPos3 = 0, mCombPos4 = 0;
+
+  // Allpass filter buffers
+  double mAllpass1[225] = {0};
+  double mAllpass2[341] = {0};
+  int mAllpassPos1 = 0, mAllpassPos2 = 0;
 };
 
 // Voice class
@@ -337,6 +474,10 @@ private:
   double mDelayBufferL[kMaxDelayBufferSize];
   double mDelayBufferR[kMaxDelayBufferSize];
   int mDelayWritePos = 0;
+
+  // Reverb instances (stereo)
+  SimpleReverb mReverbL;
+  SimpleReverb mReverbR;
 
   // Additional parameter values
   double mTimbreShift = 0.0;

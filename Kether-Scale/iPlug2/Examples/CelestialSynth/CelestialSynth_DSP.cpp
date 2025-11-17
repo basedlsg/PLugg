@@ -163,6 +163,8 @@ void CelestialSynthDSP::ProcessBlock(sample** inputs, sample** outputs, int nInp
       }
 
       // WARMTH - Soft saturation/warmth
+      // TODO PHASE 1: Move to per-voice processing for better sound quality
+      // (currently causes intermodulation distortion between voices)
       if (mWarmth > 0.1)
       {
         double warmthAmount = mWarmth * 0.5;
@@ -170,6 +172,8 @@ void CelestialSynthDSP::ProcessBlock(sample** inputs, sample** outputs, int nInp
       }
 
       // PURITY - Clean/dirty factor
+      // TODO PHASE 1: Move to per-voice processing for better sound quality
+      // (currently causes intermodulation distortion between voices)
       if (mPurity < 0.9)
       {
         double distortion = (1.0 - mPurity) * 0.2;
@@ -196,6 +200,13 @@ void CelestialSynthDSP::ProcessBlock(sample** inputs, sample** outputs, int nInp
           mDelayBufferL[mDelayWritePos] = sample + delayedSample * mDelayFeedback;
         else
           mDelayBufferR[mDelayWritePos] = sample + delayedSample * mDelayFeedback;
+      }
+
+      // Apply reverb effect (FINALLY IMPLEMENTED!)
+      if (mReverbMix > 0.01)
+      {
+        double reverbSample = (c == 0) ? mReverbL.Process(sample) : mReverbR.Process(sample);
+        sample = sample * (1.0 - mReverbMix) + reverbSample * mReverbMix;
       }
 
       outputs[c][s] = sample;
@@ -287,6 +298,12 @@ void CelestialSynthDSP::Reset(double sampleRate, int blockSize)
   std::memset(mDelayBufferL, 0, sizeof(mDelayBufferL));
   std::memset(mDelayBufferR, 0, sizeof(mDelayBufferR));
   mDelayWritePos = 0;
+
+  // Initialize reverb
+  mReverbL.SetSampleRate(sampleRate);
+  mReverbR.SetSampleRate(sampleRate);
+  mReverbL.Reset();
+  mReverbR.Reset();
 }
 
 void CelestialSynthDSP::SetWaveform(int wf)
