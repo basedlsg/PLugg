@@ -46,10 +46,15 @@ export const packageName = '@strudel/world-instruments';
  * 8. Native American - Minor pentatonic
  * 9. Nordic Aurora - Sus4 pentatonic
  *
- * Sacred Controls:
+ * 5 Sacred Controls:
  * - brilliance: Filter cutoff (0-1)
- * - motion: Vibrato depth (0-1)
- * - space: Delay/reverb mix (0-1)
- * - warmth: Tone coloration (0-1)
- * - purity: Harmonic content (0-1)
+ * - motion: LFO amount to pitch/filter/amp (0-1)
+ * - space: Reverb + delay mix (0-1)
+ * - warmth: Chorus/detune spread (0-1)
+ * - drift: Slow random modulation (0-1)
+ *
+ * 3-Layer Architecture:
+ * - SUB: Pure sine one octave below fundamental
+ * - BODY: 8 partials at just intonation ratios
+ * - AIR: High partials + filtered noise
  */

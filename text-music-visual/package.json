@@ -1,0 +1,41 @@
+{
+  "name": "text-music-visual",
+  "version": "1.0.0",
+  "description": "Transform text into immersive audio-visual experiences using phonemes, semantics, and AI",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint src --ext js,jsx"
+  },
+  "dependencies": {
+    "@fal-ai/serverless-client": "^0.10.0",
+    "@strudel/core": "latest",
+    "@strudel/mini": "latest",
+    "@strudel/webaudio": "latest",
+    "@strudel/world-instruments": "file:../strudel-world-instruments/packages/world-instruments",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "three": "^0.160.0"
+  },
+  "devDependencies": {
+    "@rollup/pluginutils": "^5.3.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "terser": "^5.44.1",
+    "vite": "^5.0.0",
+    "vite-plugin-glsl": "^1.2.0"
+  },
+  "keywords": [
+    "music",
+    "visual",
+    "generative",
+    "strudel",
+    "three.js",
+    "ai",
+    "phonemes",
+    "text-to-music"
+  ],
+  "author": "",
+  "license": "MIT"
+}

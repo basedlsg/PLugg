@@ -1,0 +1,775 @@
+/*
+ * UI Styles for Text-Music-Visual
+ *
+ * Minimal, elegant styling following the garden metaphor.
+ * Everything breathes, nothing is static.
+ */
+
+/* Reset and base */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --color-text: rgba(255, 255, 255, 0.9);
+  --color-text-dim: rgba(255, 255, 255, 0.4);
+  --color-accent: rgba(255, 255, 255, 0.6);
+  --color-glow: rgba(255, 255, 255, 0.1);
+
+  --timing-breath: 8s;
+  --timing-morph: 400ms;
+  --timing-dissolve: 500ms;
+  --timing-blend: 300ms;
+}
+
+/* Main container */
+.app-container {
+  position: fixed;
+  inset: 0;
+  background: #0a0a0a;
+  color: var(--color-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* World layer - where visual canvas renders */
+.world-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+/* Context word during initialization */
+.context-word {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2rem;
+  font-weight: 300;
+  letter-spacing: 0.3em;
+  color: var(--color-text-dim);
+  animation: contextFadeIn 1.5s ease-out forwards;
+  z-index: 10;
+}
+
+@keyframes contextFadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* Hint for new users */
+.hint {
+  position: absolute;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.875rem;
+  color: var(--color-text-dim);
+  animation: hintPulse var(--timing-breath) ease-in-out infinite;
+  z-index: 5;
+}
+
+@keyframes hintPulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+
+/* Text Input */
+.text-input-container {
+  position: absolute;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 300px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  z-index: 100;
+}
+
+.text-input-container.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.text-input-container.dissolving {
+  animation: inputDissolve 0.3s ease-out forwards;
+}
+
+@keyframes inputDissolve {
+  to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+}
+
+.input-glow {
+  position: absolute;
+  inset: -20px;
+  background: radial-gradient(
+    ellipse at center,
+    var(--color-glow) 0%,
+    transparent 70%
+  );
+  opacity: calc(var(--breathing-intensity, 0.3) * 0.5);
+  animation: breathe var(--timing-breath) ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); opacity: 0.3; }
+  50% { transform: scale(1.1); opacity: 0.5; }
+}
+
+.text-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--color-text);
+  font-size: 1.25rem;
+  font-weight: 300;
+  text-align: center;
+  letter-spacing: 0.1em;
+  padding: 8px 0;
+}
+
+.text-input::placeholder {
+  color: transparent;
+}
+
+.input-underline {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--color-text-dim);
+}
+
+.underline-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--color-text);
+  transform-origin: left;
+  transition: transform 0.2s ease;
+}
+
+/* Word Particles */
+.word-particles {
+  position: absolute;
+  z-index: 200;
+  pointer-events: none;
+}
+
+.word-whole {
+  font-size: 1.25rem;
+  font-weight: 300;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  transition: opacity 0.1s ease;
+}
+
+.phase-gathering .word-whole {
+  opacity: 1;
+}
+
+.phase-dissolving .word-whole,
+.phase-absorbed .word-whole {
+  opacity: 0;
+}
+
+.particles-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.particle {
+  position: absolute;
+  font-size: 1.25rem;
+  font-weight: 300;
+  transform: translate(var(--start-x), var(--start-y));
+  opacity: 0;
+}
+
+.phase-dissolving .particle,
+.phase-absorbed .particle {
+  animation: particleFloat var(--duration) ease-out forwards;
+  animation-delay: var(--delay);
+}
+
+@keyframes particleFloat {
+  0% {
+    transform: translate(var(--start-x), var(--start-y));
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--end-x), var(--end-y)) rotate(var(--rotation));
+    opacity: 0;
+  }
+}
+
+.absorption-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100px;
+  height: 100px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, var(--color-glow) 0%, transparent 70%);
+  opacity: 0;
+}
+
+.phase-dissolving .absorption-glow {
+  animation: absorbPulse 0.5s ease-out forwards;
+}
+
+@keyframes absorbPulse {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(3);
+    opacity: 0;
+  }
+}
+
+/* Constellation - Personal Cosmology */
+.constellation-container {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 100;
+  opacity: 0;
+  transform: scale(0.95);
+  transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.7) 100%);
+}
+
+.constellation-container.visible {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+.constellation-container.hidden {
+  opacity: 0;
+  transform: scale(0.95);
+  pointer-events: none;
+}
+
+/* SVG Canvas */
+.constellation-svg {
+  width: 80vmin;
+  height: 80vmin;
+  max-width: 600px;
+  max-height: 600px;
+  color: var(--color-text);
+  transition: transform 0.1s ease-out;
+}
+
+/* Connection lines */
+.connections line {
+  stroke-linecap: round;
+}
+
+.connection-line {
+  transition: opacity 0.3s ease-out;
+}
+
+/* Star Nodes */
+.star-node {
+  transition: transform 0.2s ease-out;
+}
+
+.star-node:hover {
+  transform: scale(1.2);
+}
+
+.star-node.pressed {
+  transform: scale(0.9);
+}
+
+.star-node.current .star-core {
+  filter: url(#glow);
+}
+
+/* Star Glow Animation */
+.star-glow-outer,
+.star-glow-inner {
+  transition: opacity 0.3s ease-out;
+}
+
+.star-node:hover .star-glow-outer {
+  opacity: 0.2;
+}
+
+.star-node:hover .star-glow-inner {
+  opacity: 0.3;
+}
+
+/* Star Label */
+.star-label {
+  transition: opacity 0.2s ease-out;
+  pointer-events: none;
+  text-shadow: 0 0 8px rgba(0, 0, 0, 0.8);
+  font-weight: 300;
+  letter-spacing: 0.05em;
+}
+
+/* Pulse Ring */
+.pulse-ring {
+  animation: pulse-fade 4s ease-in-out infinite;
+}
+
+@keyframes pulse-fade {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.1;
+  }
+}
+
+/* Press Indicator */
+.press-indicator {
+  animation: press-grow 0.5s ease-out forwards;
+}
+
+@keyframes press-grow {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+/* Center Point */
+.constellation-center {
+  animation: center-pulse 6s ease-in-out infinite;
+}
+
+@keyframes center-pulse {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.15;
+  }
+}
+
+/* Current Node Breathing */
+.star-node.current .star-core {
+  animation: star-breathe 4s ease-in-out infinite;
+}
+
+@keyframes star-breathe {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.1);
+  }
+}
+
+/* Hints */
+.constellation-hint {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  opacity: 0.4;
+  transition: opacity 0.3s ease-out;
+  pointer-events: none;
+  color: var(--color-text-dim);
+}
+
+.constellation-hint .hint-key {
+  display: inline-block;
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  margin-right: 4px;
+  font-family: monospace;
+}
+
+.constellation-container:hover .constellation-hint {
+  opacity: 0.6;
+}
+
+.constellation-instructions {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  opacity: 0.3;
+  pointer-events: none;
+  display: flex;
+  gap: 8px;
+  color: var(--color-text-dim);
+}
+
+.constellation-instructions .separator {
+  opacity: 0.5;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .text-input-container {
+    width: 80%;
+    bottom: 80px;
+  }
+
+  .text-input {
+    font-size: 1rem;
+  }
+
+  .context-word {
+    font-size: 1.5rem;
+  }
+
+  .constellation-svg {
+    width: 90vmin;
+    height: 90vmin;
+  }
+
+  .star-label {
+    font-size: 12px;
+  }
+
+  .constellation-hint {
+    bottom: 40px;
+  }
+
+  .constellation-instructions {
+    font-size: 9px;
+  }
+}
+
+/* ===================================
+   ACCESSIBILITY STYLES
+   =================================== */
+
+/* Screen reader only content */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Skip link for keyboard navigation */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--color-text);
+  color: #0a0a0a;
+  padding: 8px 16px;
+  z-index: 1000;
+  text-decoration: none;
+  font-weight: 500;
+  border-radius: 0 0 4px 0;
+  transition: top 0.2s ease;
+}
+
+.skip-link:focus {
+  top: 0;
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Focus indicators - visible on all backgrounds */
+:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.9);
+  outline-offset: 3px;
+}
+
+.text-input:focus-visible {
+  outline: none; /* Uses underline indicator instead */
+}
+
+.text-input:focus ~ .input-underline {
+  background: var(--color-text);
+  height: 2px;
+}
+
+/* Constellation node focus */
+.star-node:focus-visible {
+  outline: none;
+}
+
+.star-node:focus-visible .star-core {
+  stroke: var(--color-text);
+  stroke-width: 2px;
+}
+
+.star-node.focused .star-core {
+  stroke: var(--color-text);
+  stroke-width: 2px;
+  r: calc(var(--node-size, 6px) / 2 + 2px);
+}
+
+.star-node.focused .star-label {
+  opacity: 0.9 !important;
+}
+
+/* High contrast text overlays - WCAG AA compliant */
+.context-word,
+.hint,
+.constellation-hint {
+  text-shadow:
+    0 0 10px rgba(0, 0, 0, 0.8),
+    0 0 20px rgba(0, 0, 0, 0.6);
+}
+
+/* Reduced motion - thoughtful alternatives, not elimination */
+@media (prefers-reduced-motion: reduce) {
+  /* Base transition override - instant but not jarring */
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.1ms !important;
+  }
+
+  /* Breathing animations -> static with subtle color shift */
+  .input-glow {
+    animation: none !important;
+    opacity: 0.4;
+    /* Subtle color shift instead of scale breathing */
+    background: radial-gradient(
+      ellipse at center,
+      rgba(255, 255, 255, 0.15) 0%,
+      transparent 70%
+    );
+  }
+
+  .hint {
+    animation: none !important;
+    opacity: 0.5;
+  }
+
+  /* Morphing -> instant with crossfade */
+  .word-particles {
+    /* Faster dissolve - crossfade feel */
+    opacity: 1;
+  }
+
+  .phase-dissolving .word-whole,
+  .phase-absorbed .word-whole {
+    transition: opacity 0.15s ease !important;
+  }
+
+  .phase-dissolving .particle,
+  .phase-absorbed .particle {
+    animation: none !important;
+    opacity: 0;
+  }
+
+  /* Particle float -> instant crossfade */
+  @keyframes particleFloat {
+    0% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
+  .phase-dissolving .absorption-glow {
+    animation: none !important;
+    opacity: 0.3;
+    transform: translate(-50%, -50%) scale(1.5);
+  }
+
+  /* Star animations -> static with brightness indication */
+  .star-glow {
+    animation: none !important;
+    transform: scale(1);
+  }
+
+  .star-node.current .star-core {
+    animation: none !important;
+    opacity: 1;
+    /* Use size instead of pulse to indicate current */
+    r: calc(var(--node-size, 12px) / 2 * 1.3);
+  }
+
+  .constellation-center {
+    animation: none !important;
+    r: 4px;
+    opacity: 0.4;
+  }
+
+  /* Context word -> instant appear */
+  .context-word {
+    animation: none !important;
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+
+  /* Input dissolve -> quick fade */
+  .text-input-container.dissolving {
+    animation: none !important;
+    opacity: 0;
+    transition: opacity 0.1s ease !important;
+  }
+
+  /* Current pulse -> static highlight */
+  @keyframes currentPulse {
+    0%, 100% { opacity: 1; }
+  }
+}
+
+/* Alternative content for reduced motion */
+.reduced-motion .animated-content {
+  display: none;
+}
+
+.reduced-motion .static-alternative {
+  display: block;
+}
+
+/* Crossfade wrapper for reduced motion transitions */
+.crossfade-container {
+  position: relative;
+}
+
+.crossfade-container > * {
+  transition: opacity 0.15s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crossfade-container > * {
+    transition: opacity 0.1s ease !important;
+  }
+}
+
+/* Color shift alternative to breathing */
+@media (prefers-reduced-motion: reduce) {
+  .breathing-element {
+    animation: colorShift 8s ease-in-out infinite !important;
+  }
+
+  @keyframes colorShift {
+    0%, 100% {
+      filter: brightness(1);
+    }
+    50% {
+      filter: brightness(1.1);
+    }
+  }
+}
+
+/* Focus trap indicator */
+.focus-trap-active {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.3);
+}
+
+/* ARIA landmark styling */
+[role="main"] {
+  position: relative;
+  z-index: 1;
+}
+
+[role="status"],
+[role="alert"] {
+  /* Already sr-only, but ensure they don't affect layout */
+  pointer-events: none;
+}
+
+/* ===================================
+   FIRST RUN EXPERIENCE STYLES
+   =================================== */
+
+/* First run gesture capture - invisible but present */
+#first-run-gesture-capture {
+  cursor: default;
+}
+
+/* First run word display */
+#first-run-word {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  text-shadow:
+    0 0 20px rgba(255, 255, 255, 0.3),
+    0 0 40px rgba(255, 255, 255, 0.1);
+}
+
+/* First run cursor/input indicator */
+#first-run-cursor {
+  border-radius: 1px;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+/* Animation keyframes for first run */
+@keyframes firstRunWordFloat {
+  0%, 100% {
+    transform: translate(-50%, calc(-50% + 0px));
+  }
+  50% {
+    transform: translate(-50%, calc(-50% - 5px));
+  }
+}
+
+@keyframes firstRunCursorBlink {
+  0%, 100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* Reduced motion for first run */
+@media (prefers-reduced-motion: reduce) {
+  #first-run-word {
+    animation: none !important;
+    transition: opacity 0.3s ease, color 0.3s ease !important;
+  }
+
+  #first-run-cursor {
+    animation: none !important;
+    opacity: 0.5;
+  }
+
+  /* Use brightness shift instead of floating */
+  #first-run-word {
+    filter: brightness(1);
+    transition: filter 0.5s ease, opacity 0.3s ease !important;
+  }
+}
+
+/* First run anticipation state - system ready indicator */
+.first-run-ready .app-container {
+  /* Subtle vignette shift to indicate readiness */
+}
+
+/* Ensure first run elements don't interfere with touch */
+#first-run-word,
+#first-run-cursor {
+  touch-action: none;
+}
