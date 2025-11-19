@@ -24,6 +24,7 @@ import './patterns.mjs';
 export * from './scales.mjs';
 export * from './synth.mjs';
 export * from './patterns.mjs';
+export * as examples from './examples.mjs';
 
 // Initialize synths when module loads
 registerWorldSynths();

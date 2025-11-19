@@ -18,3 +18,4 @@ export * from './packages/transpiler/index.mjs';
 export * from './packages/web/index.mjs';
 export * from './packages/webaudio/index.mjs';
 export * from './packages/xen/index.mjs';
+export * from './packages/world-instruments/index.mjs';
