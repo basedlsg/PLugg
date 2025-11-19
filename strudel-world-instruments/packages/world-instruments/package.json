@@ -1,0 +1,46 @@
+{
+  "name": "@strudel/world-instruments",
+  "version": "1.0.0",
+  "description": "World instruments with 9 pentatonic scales using just intonation for Strudel",
+  "main": "index.mjs",
+  "publishConfig": {
+    "main": "dist/index.mjs"
+  },
+  "scripts": {
+    "build": "vite build",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
+  },
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://codeberg.org/uzu/strudel.git"
+  },
+  "keywords": [
+    "tidalcycles",
+    "strudel",
+    "pattern",
+    "livecoding",
+    "algorave",
+    "world-music",
+    "pentatonic",
+    "just-intonation"
+  ],
+  "author": "PLugg Contributors",
+  "license": "AGPL-3.0-or-later",
+  "bugs": {
+    "url": "https://codeberg.org/uzu/strudel/issues"
+  },
+  "homepage": "https://codeberg.org/uzu/strudel#readme",
+  "dependencies": {
+    "@strudel/core": "workspace:*",
+    "@strudel/superdough": "workspace:*"
+  },
+  "devDependencies": {
+    "vite": "^6.0.11",
+    "vitest": "^3.0.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
