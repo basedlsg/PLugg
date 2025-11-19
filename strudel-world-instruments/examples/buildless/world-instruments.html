@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Strudel World Instruments Demo</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #1a1a2e;
+      color: #e0e0e0;
+    }
+    h1 {
+      color: #f0a500;
+    }
+    h2 {
+      color: #f093fb;
+      margin-top: 30px;
+    }
+    .pattern-btn {
+      display: block;
+      width: 100%;
+      padding: 15px;
+      margin: 10px 0;
+      font-size: 14px;
+      font-family: monospace;
+      background: #16213e;
+      color: #4ecca3;
+      border: 1px solid #4ecca3;
+      border-radius: 5px;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s;
+    }
+    .pattern-btn:hover {
+      background: #1a3a5c;
+      transform: translateX(5px);
+    }
+    .pattern-btn:active {
+      background: #0f3460;
+    }
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin: 20px 0;
+    }
+    .control-btn {
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #playBtn {
+      background: #4ecca3;
+      color: #1a1a2e;
+    }
+    #stopBtn {
+      background: #f05454;
+      color: white;
+    }
+    .status {
+      padding: 10px;
+      border-radius: 5px;
+      margin: 10px 0;
+      font-family: monospace;
+    }
+    .playing {
+      background: #0f3460;
+      border-left: 3px solid #4ecca3;
+    }
+    .stopped {
+      background: #2d2d44;
+      border-left: 3px solid #666;
+    }
+    .scale-info {
+      background: #16213e;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 20px 0;
+    }
+    .scale-info h3 {
+      margin-top: 0;
+      color: #f0a500;
+    }
+    .scale-list {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .scale-item {
+      background: #1a3a5c;
+      padding: 8px;
+      border-radius: 3px;
+      font-size: 12px;
+    }
+    .scale-num {
+      color: #f093fb;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>World Instruments for Strudel</h1>
+
+  <div class="scale-info">
+    <h3>9 Pentatonic Scales with Just Intonation</h3>
+    <div class="scale-list">
+      <div class="scale-item"><span class="scale-num">0</span> Japanese Yo</div>
+      <div class="scale-item"><span class="scale-num">1</span> Chinese Gong</div>
+      <div class="scale-item"><span class="scale-num">2</span> Celtic</div>
+      <div class="scale-item"><span class="scale-num">3</span> Indonesian Slendro</div>
+      <div class="scale-item"><span class="scale-num">4</span> Scottish Highland</div>
+      <div class="scale-item"><span class="scale-num">5</span> Mongolian Throat</div>
+      <div class="scale-item"><span class="scale-num">6</span> Egyptian Sacred</div>
+      <div class="scale-item"><span class="scale-num">7</span> Native American</div>
+      <div class="scale-item"><span class="scale-num">8</span> Nordic Aurora</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="playBtn" class="control-btn">Play</button>
+    <button id="stopBtn" class="control-btn">Stop</button>
+  </div>
+
+  <div id="status" class="status stopped">Click a pattern to select, then Play</div>
+
+  <h2>Scale Demos</h2>
+
+  <button class="pattern-btn" data-pattern='note("c4 d4 e4 g4 a4 g4 e4 d4").s("yo").brilliance(0.7)'>
+    Japanese Yo: note("c4 d4 e4 g4 a4 g4 e4 d4").s("yo").brilliance(0.7)
+  </button>
+
+  <button class="pattern-btn" data-pattern='note("c4 d4 e4 g4 a4").s("gong").warmth(0.8).space(0.3)'>
+    Chinese Gong: note("c4 d4 e4 g4 a4").s("gong").warmth(0.8).space(0.3)
+  </button>
+
+  <button class="pattern-btn" data-pattern='note("c4 d4 f4 g4 bb4 g4 f4 d4").s("celtic").brilliance(0.75)'>
+    Celtic: note("c4 d4 f4 g4 bb4 g4 f4 d4").s("celtic").brilliance(0.75)
+  </button>
+
+  <button class="pattern-btn" data-pattern='note("[c4 e4] [g4 a4] [c5 a4] [g4 e4]").s("slendro").space(0.5)'>
+    Slendro: note("[c4 e4] [g4 a4] [c5 a4] [g4 e4]").s("slendro").space(0.5)
+  </button>
+
+  <button class="pattern-btn" data-pattern='note("c4 eb4 f4 g4 bb4 g4 f4 eb4").s("throat").slow(2).warmth(0.9)'>
+    Mongolian: note("c4 eb4 f4 g4 bb4 g4 f4 eb4").s("throat").slow(2).warmth(0.9)
+  </button>
+
+  <button class="pattern-btn" data-pattern='note("c4 d4 e4 g4 a4").s("sacred").motion(0.2).space(0.4)'>
+    Egyptian: note("c4 d4 e4 g4 a4").s("sacred").motion(0.2).space(0.4)
+  </button>
+
+  <button class="pattern-btn" data-pattern='note("c4 d4 f4 g4 bb4").s("aurora").slow(2).space(0.6).motion(0.3)'>
+    Nordic: note("c4 d4 f4 g4 bb4").s("aurora").slow(2).space(0.6).motion(0.3)
+  </button>
+
+  <h2>Sacred Controls Demo</h2>
+
+  <button class="pattern-btn" data-pattern='note("c4 e4 g4 a4").s("world").brilliance(sine.range(0.3, 0.9).slow(4)).motion(0.2)'>
+    Animated Brilliance: ...brilliance(sine.range(0.3, 0.9).slow(4))
+  </button>
+
+  <button class="pattern-btn" data-pattern='note("c4 d4 e4 g4").s("yo").motion(tri.range(0, 0.5).slow(8))'>
+    Animated Motion: ...motion(tri.range(0, 0.5).slow(8))
+  </button>
+
+  <h2>Layered Patterns</h2>
+
+  <button class="pattern-btn" data-pattern='stack(note("c3").s("throat").sustain(4), note("g4 e4 d4 c4").s("gong").slow(2)).space(0.3)'>
+    Drone + Melody: stack(throat drone, gong melody)
+  </button>
+
+  <script type="module">
+    import { repl, controls } from 'https://unpkg.com/@strudel/repl@1.2.5';
+
+    let currentPattern = null;
+    let replInstance = null;
+
+    // Initialize REPL
+    async function initRepl() {
+      replInstance = await repl({
+        defaultOutput: 'speaker',
+        prebake: true,
+        afterEval: () => {
+          document.getElementById('status').textContent = 'Playing...';
+          document.getElementById('status').className = 'status playing';
+        },
+      });
+    }
+
+    initRepl();
+
+    // Pattern button handlers
+    document.querySelectorAll('.pattern-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentPattern = btn.dataset.pattern;
+        document.getElementById('status').textContent = `Selected: ${currentPattern.substring(0, 50)}...`;
+        document.getElementById('status').className = 'status stopped';
+
+        // Highlight selected button
+        document.querySelectorAll('.pattern-btn').forEach(b => b.style.borderColor = '#4ecca3');
+        btn.style.borderColor = '#f0a500';
+      });
+    });
+
+    // Play button
+    document.getElementById('playBtn').addEventListener('click', async () => {
+      if (!currentPattern) {
+        alert('Please select a pattern first');
+        return;
+      }
+
+      if (replInstance) {
+        try {
+          await replInstance.evaluate(currentPattern);
+        } catch (err) {
+          console.error('Error:', err);
+          document.getElementById('status').textContent = `Error: ${err.message}`;
+        }
+      }
+    });
+
+    // Stop button
+    document.getElementById('stopBtn').addEventListener('click', () => {
+      if (replInstance) {
+        replInstance.stop();
+        document.getElementById('status').textContent = 'Stopped';
+        document.getElementById('status').className = 'status stopped';
+      }
+    });
+  </script>
+</body>
+</html>

@@ -19,11 +19,13 @@
 
 import { registerWorldSynths } from './synth.mjs';
 import './patterns.mjs';
+import './controls.mjs';
 
 // Re-export everything
 export * from './scales.mjs';
 export * from './synth.mjs';
 export * from './patterns.mjs';
+export * from './controls.mjs';
 export * as examples from './examples.mjs';
 
 // Initialize synths when module loads
